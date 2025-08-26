@@ -242,7 +242,7 @@ install_python_dependencies() {
         tokenizers==0.19.1 \
         sentencepiece==0.2.0 \
         protobuf==3.20.3 \
-        "huggingface-hub>=0.34.0,<1.0" \
+        huggingface-hub \
         peft==0.12.0 \
         bitsandbytes==0.43.3 \
         datasets==2.21.0 \
