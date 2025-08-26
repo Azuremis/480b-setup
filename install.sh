@@ -239,7 +239,7 @@ install_python_dependencies() {
     pip install \
         transformers==4.54.1 \
         accelerate==0.33.0 \
-        tokenizers==0.19.1 \
+        tokenizers \
         sentencepiece==0.2.0 \
         protobuf==3.20.3 \
         huggingface-hub \
