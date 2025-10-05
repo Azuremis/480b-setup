@@ -1,6 +1,8 @@
 # Manual Installation Guide
 
-Step-by-step manual installation instructions for Qwen3-Coder-480B-A35B-Instruct.
+Step-by-step manual installation instructions for Qwen3-Coder-480B-A35B-Instruct using UV package manager.
+
+> **⚡ Now using UV**: This guide uses [UV](https://github.com/astral-sh/uv), a blazing-fast Python package manager that's 10-100x faster than pip with automatic dependency conflict resolution!
 
 ## 📋 Prerequisites
 
@@ -97,9 +99,22 @@ source ~/.bashrc
 nvcc --version
 ```
 
-## 🐍 Step 3: Python Environment Setup
+## 🐍 Step 3: Python Environment Setup with UV
 
-### Create Virtual Environment
+### Install UV Package Manager
+
+```bash
+# Install UV (fast Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Add UV to PATH for current session
+source "$HOME/.cargo/env"
+
+# Verify installation
+uv --version
+```
+
+### Create Virtual Environment with UV
 
 ```bash
 # Define installation directory
@@ -108,21 +123,26 @@ export INSTALL_DIR="$HOME/qwen480b_env"
 # Remove existing installation if present
 rm -rf "$INSTALL_DIR"
 
-# Create new virtual environment
-python3 -m venv "$INSTALL_DIR"
+# Create project directory
+mkdir -p "$INSTALL_DIR"
+cd "$INSTALL_DIR"
+
+# Create virtual environment with UV (much faster than venv)
+uv venv --python 3.10
 
 # Activate environment
-source "$INSTALL_DIR/bin/activate"
-
-# Upgrade pip
-pip install --upgrade pip setuptools wheel
+source .venv/bin/activate
 ```
 
-### Install PyTorch with CUDA Support
+### Install PyTorch with CUDA Support using UV
 
 ```bash
-# Install PyTorch 2.3.0 with CUDA 12.1
-pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+# Install PyTorch 2.3.0 with CUDA 12.1 (UV downloads in parallel - much faster!)
+uv pip install \
+    torch==2.3.0 \
+    torchvision==0.18.0 \
+    torchaudio==2.3.0 \
+    --index-url https://download.pytorch.org/whl/cu121
 
 # Verify PyTorch installation
 python -c "import torch; print(f'PyTorch: {torch.__version__}')"
@@ -130,40 +150,55 @@ python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 python -c "import torch; print(f'CUDA version: {torch.version.cuda}')"
 ```
 
-### Install Core Dependencies
+### Install Core Dependencies with UV
 
 ```bash
-pip install \
+# UV automatically resolves dependencies and installs in parallel
+uv pip install \
     transformers==4.54.1 \
     accelerate==0.33.0 \
     tokenizers==0.19.1 \
     sentencepiece==0.2.0 \
     protobuf==3.20.3 \
-    huggingface-hub==0.24.6 \
+    "huggingface-hub>=0.34.0,<1.0" \
     peft==0.12.0 \
     bitsandbytes==0.43.3 \
     datasets==2.21.0 \
     evaluate==0.4.3 \
+    numpy==1.24.4 \
     scikit-learn==1.5.1 \
     scipy==1.13.1 \
     matplotlib==3.9.2 \
     seaborn==0.13.2 \
     jupyter==1.0.0 \
     ipython==8.26.0 \
+    notebook==7.2.1 \
     tqdm==4.66.5 \
     psutil==6.0.0 \
     gpustat==1.1.1 \
-    nvidia-ml-py3==7.352.0
+    py3nvml==0.2.7 \
+    nvidia-ml-py3==7.352.0 \
+    requests==2.32.3 \
+    urllib3==2.2.2 \
+    pyyaml==6.0.2 \
+    toml==0.10.2
 ```
 
 ### Install Optional Optimization Libraries
 
 ```bash
 # VLLM for optimized inference (may fail on some systems)
-pip install vllm==0.5.4
+uv pip install vllm==0.5.4
 
 # Flash Attention (if compatible)
-pip install flash-attn --no-build-isolation
+uv pip install flash-attn --no-build-isolation
+```
+
+### View Dependency Tree (NEW with UV!)
+
+```bash
+# See complete dependency tree - helps understand what's installed
+uv pip tree
 ```
 
 ## 📦 Step 4: Model Download
@@ -306,17 +341,20 @@ source "$INSTALL_DIR/bin/activate"
 python "$INSTALL_DIR/test_setup.py"
 ```
 
-## 🚀 Step 6: Create Activation Script
+## 🚀 Step 6: Create Activation Script (UV-enabled)
 
 ```bash
 cat > "$INSTALL_DIR/activate_qwen480b.sh" << 'EOF'
 #!/bin/bash
-# Qwen3-Coder-480B Environment Activation Script
+# Qwen3-Coder-480B Environment Activation Script (UV-powered)
 
-echo "🚀 Activating Qwen3-Coder-480B Environment"
+echo "🚀 Activating Qwen3-Coder-480B Environment (UV)"
 
-# Activate Python environment
-source "$HOME/qwen480b_env/bin/activate"
+# Add UV to PATH
+source "$HOME/.cargo/env" 2>/dev/null || true
+
+# Activate Python environment (UV uses .venv directory)
+source "$HOME/qwen480b_env/.venv/bin/activate"
 
 # Set environment variables
 export INSTALL_DIR="$HOME/qwen480b_env"
@@ -329,7 +367,14 @@ export LD_LIBRARY_PATH="/usr/local/cuda/lib64:$LD_LIBRARY_PATH"
 
 echo "✓ Environment activated!"
 echo "Python: $(which python)"
+echo "UV: $(uv --version 2>/dev/null || echo 'not in PATH')"
 echo "Install dir: $INSTALL_DIR"
+
+echo ""
+echo "UV Quick Commands:"
+echo "  • View dependencies: uv pip tree"
+echo "  • Update package: uv pip install --upgrade <package>"
+echo "  • List packages: uv pip list"
 
 # Change to install directory
 cd "$INSTALL_DIR"
@@ -480,6 +525,61 @@ On NVIDIA H100 80GB:
 - **Tokens per Second**: 100-200 (varies by complexity)
 - **GPU Memory Usage**: ~45-50GB
 
+## ⚡ UV Package Manager Benefits
+
+Now that you're using UV, you have access to these powerful features:
+
+### Faster Operations
+```bash
+# Install packages 10-100x faster than pip
+uv pip install <package>
+
+# Parallel downloads and installations
+uv pip install package1 package2 package3
+```
+
+### Better Dependency Management
+```bash
+# Automatic conflict resolution
+uv pip install transformers torch
+
+# View complete dependency tree
+uv pip tree
+
+# Check for outdated packages
+uv pip list --outdated
+```
+
+### Improved Workflow
+```bash
+# Quick package info
+uv pip show transformers
+
+# Freeze with better performance
+uv pip freeze > requirements.txt
+
+# Sync environment from file
+uv pip sync requirements.txt
+```
+
+### Cache Management
+```bash
+# Show cache location
+uv cache dir
+
+# Clean cache to save space
+uv cache clean
+
+# View cache stats
+uv cache prune --dry-run
+```
+
+## 📚 Additional UV Resources
+
+- [UV Migration Guide](./UV_MIGRATION_GUIDE.md) - Detailed comparison with pip
+- [UV Documentation](https://github.com/astral-sh/uv) - Official UV docs
+- [UV Benchmarks](https://github.com/astral-sh/uv#benchmarks) - Performance comparisons
+
 ---
 
-**🎉 Congratulations!** You have successfully installed Qwen3-Coder-480B-A35B-Instruct manually. The model is now ready for use.
+**🎉 Congratulations!** You have successfully installed Qwen3-Coder-480B-A35B-Instruct manually with UV package manager. Enjoy faster, more reliable dependency management!

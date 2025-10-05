@@ -1,0 +1,104 @@
+[project]
+name = "qwen3-coder-480b-setup"
+version = "1.0.0"
+description = "Qwen3-Coder-480B-A35B-Instruct installation and inference environment"
+readme = "README.md"
+requires-python = ">=3.8,<3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "TwoBitApps", email = "support@twobitapps.com" }
+]
+keywords = ["qwen", "llm", "ai", "language-model", "cuda", "pytorch"]
+
+dependencies = [
+    # Core ML frameworks
+    "torch==2.3.0",
+    "torchvision==0.18.0",
+    "torchaudio==2.3.0",
+    
+    # Transformers ecosystem
+    "transformers==4.54.1",
+    "accelerate==0.33.0",
+    "tokenizers==0.19.1",
+    "sentencepiece==0.2.0",
+    "protobuf==3.20.3",
+    
+    # Hugging Face ecosystem
+    "huggingface-hub>=0.34.0,<1.0",
+    "datasets==2.21.0",
+    "evaluate==0.4.3",
+    
+    # Model optimization
+    "peft==0.12.0",
+    "bitsandbytes==0.43.3",
+    
+    # Scientific computing
+    "numpy==1.24.4",
+    "scipy==1.13.1",
+    "scikit-learn==1.5.1",
+    
+    # Data visualization
+    "matplotlib==3.9.2",
+    "seaborn==0.13.2",
+    
+    # Development tools
+    "jupyter==1.0.0",
+    "ipython==8.26.0",
+    "notebook==7.2.1",
+    
+    # Utilities
+    "tqdm==4.66.5",
+    "psutil==6.0.0",
+    "gpustat==1.1.1",
+    "py3nvml==0.2.7",
+    "nvidia-ml-py3==7.352.0",
+    
+    # HTTP and networking
+    "requests==2.32.3",
+    "urllib3==2.2.2",
+    
+    # Configuration and serialization
+    "pyyaml==6.0.2",
+    "toml==0.10.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.2",
+    "black==24.8.0",
+    "flake8==7.1.1",
+    "mypy==1.11.1",
+]
+
+optimization = [
+    # VLLM for optimized inference (may fail on some systems)
+    "vllm==0.5.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+# PyTorch index URL for CUDA 12.1 support
+index-url = "https://download.pytorch.org/whl/cu121"
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu121" }
+torchvision = { index = "pytorch-cu121" }
+torchaudio = { index = "pytorch-cu121" }
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+

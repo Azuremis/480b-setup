@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Qwen3-Coder-480B-A35B-Instruct Automated Installation Script
-# Version: 1.0.0
+# Version: 2.0.0 (with UV package manager)
 # Compatible with: Ubuntu 20.04+, 22.04 LTS
 # Hardware: NVIDIA H100 80GB, A100 80GB (minimum)
 
@@ -53,7 +53,7 @@ print_header() {
     echo "   ╚═════╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═══╝         ╚═╝ ╚════╝  ╚═════╝ ╚═════╝ "
     echo ""
     echo "              Qwen3-Coder-480B-A35B-Instruct Installation Script"
-    echo "                           Version 1.0.0"
+    echo "                      Version 2.0.0 (Powered by UV)"
     echo -e "${NC}"
 }
 
@@ -116,13 +116,47 @@ check_system_requirements() {
     log "✓ System requirements check passed"
 }
 
+install_uv() {
+    log "Installing UV package manager..."
+    
+    # Check if UV is already installed
+    if command -v uv &> /dev/null; then
+        local uv_version
+        uv_version=$(uv --version | awk '{print $2}')
+        log_info "UV already installed: $uv_version"
+        
+        # Update UV to latest version
+        log "Updating UV to latest version..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        source "$HOME/.cargo/env" 2>/dev/null || true
+        log "✓ UV updated to latest version"
+    else
+        # Install UV
+        log "Downloading and installing UV..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        
+        # Add UV to PATH for current session
+        source "$HOME/.cargo/env" 2>/dev/null || true
+        
+        # Verify installation
+        if command -v uv &> /dev/null; then
+            local uv_version
+            uv_version=$(uv --version | awk '{print $2}')
+            log "✓ UV $uv_version installed successfully"
+        else
+            log_error "UV installation failed"
+            exit 1
+        fi
+    fi
+}
+
 install_system_dependencies() {
     log "Installing system dependencies..."
     
     # Update package lists
     sudo apt update
     
-    # Install essential packages
+    # Install essential packages (note: python3-venv removed, using UV instead)
     sudo apt install -y \
         build-essential \
         cmake \
@@ -135,8 +169,6 @@ install_system_dependencies() {
         tmux \
         vim \
         python3 \
-        python3-pip \
-        python3-venv \
         python3-dev \
         libblas-dev \
         liblapack-dev \
@@ -153,14 +185,15 @@ install_system_dependencies() {
         tk-dev \
         libxml2-dev \
         libxmlsec1-dev \
-        libffi-dev \
-        liblzma-dev \
         bc
     
     # Install Git LFS
     git lfs install --skip-repo
     
     log "✓ System dependencies installed"
+    
+    # Install UV package manager
+    install_uv
 }
 
 setup_cuda() {
@@ -206,7 +239,10 @@ setup_cuda() {
 }
 
 create_python_environment() {
-    log "Creating isolated Python environment..."
+    log "Creating isolated Python environment with UV..."
+    
+    # Ensure UV is in PATH
+    source "$HOME/.cargo/env" 2>/dev/null || true
     
     # Remove existing environment if it exists
     if [ -d "$INSTALL_DIR" ]; then
@@ -214,65 +250,110 @@ create_python_environment() {
         rm -rf "$INSTALL_DIR"
     fi
     
-    # Create virtual environment
-    python3 -m venv "$INSTALL_DIR"
+    # Create directory for the project
+    mkdir -p "$INSTALL_DIR"
+    cd "$INSTALL_DIR"
+    
+    # Copy pyproject.toml to install directory
+    local script_dir
+    script_dir=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+    if [ -f "$script_dir/pyproject.toml" ]; then
+        cp "$script_dir/pyproject.toml" "$INSTALL_DIR/"
+        log "✓ Copied pyproject.toml to install directory"
+    else
+        log_warning "pyproject.toml not found, creating minimal version"
+        cat > "$INSTALL_DIR/pyproject.toml" << 'PYPROJECT_EOF'
+[project]
+name = "qwen3-coder-480b-setup"
+version = "1.0.0"
+requires-python = ">=3.8,<3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+PYPROJECT_EOF
+    fi
+    
+    # Create virtual environment with UV
+    log "Creating UV virtual environment..."
+    uv venv --python 3.10
     
     # Activate environment
-    source "$INSTALL_DIR/bin/activate"
+    source "$INSTALL_DIR/.venv/bin/activate"
     
-    # Upgrade pip
-    pip install --upgrade pip setuptools wheel
-    
-    log "✓ Python environment created at $INSTALL_DIR"
+    log "✓ Python environment created at $INSTALL_DIR with UV"
 }
 
 install_python_dependencies() {
-    log "Installing Python dependencies..."
+    log "Installing Python dependencies with UV..."
+    
+    # Ensure UV is in PATH
+    source "$HOME/.cargo/env" 2>/dev/null || true
     
     # Activate environment
-    source "$INSTALL_DIR/bin/activate"
+    source "$INSTALL_DIR/.venv/bin/activate"
     
-    # Install PyTorch with CUDA 12.1 support
-    pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    cd "$INSTALL_DIR"
     
-    # Install core dependencies with specific versions
-    pip install \
+    # Install PyTorch first with specific index
+    log "Installing PyTorch with CUDA 12.1 support..."
+    uv pip install \
+        torch==2.3.0 \
+        torchvision==0.18.0 \
+        torchaudio==2.3.0 \
+        --index-url https://download.pytorch.org/whl/cu121
+    
+    # Install core dependencies with UV
+    log "Installing core ML dependencies..."
+    uv pip install \
         transformers==4.54.1 \
         accelerate==0.33.0 \
-        tokenizers \
+        tokenizers==0.19.1 \
         sentencepiece==0.2.0 \
         protobuf==3.20.3 \
-        huggingface-hub \
+        "huggingface-hub>=0.34.0,<1.0" \
         peft==0.12.0 \
         bitsandbytes==0.43.3 \
         datasets==2.21.0 \
         evaluate==0.4.3 \
+        numpy==1.24.4 \
         scikit-learn==1.5.1 \
         scipy==1.13.1 \
         matplotlib==3.9.2 \
         seaborn==0.13.2 \
         jupyter==1.0.0 \
         ipython==8.26.0 \
+        notebook==7.2.1 \
         tqdm==4.66.5 \
         psutil==6.0.0 \
         gpustat==1.1.1 \
-        nvidia-ml-py3==7.352.0
+        py3nvml==0.2.7 \
+        nvidia-ml-py3==7.352.0 \
+        requests==2.32.3 \
+        urllib3==2.2.2 \
+        pyyaml==6.0.2 \
+        toml==0.10.2
     
     # Install VLLM for optimized inference (if compatible)
     log "Attempting to install VLLM..."
-    if pip install vllm==0.5.4; then
+    if uv pip install vllm==0.5.4; then
         log "✓ VLLM installed successfully"
     else
         log_warning "VLLM installation failed, continuing without it"
     fi
     
     # Verify installation
+    log "Verifying installations..."
     python -c "import torch; print(f'PyTorch version: {torch.__version__}')"
     python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
     python -c "import torch; print(f'CUDA version: {torch.version.cuda}')"
     python -c "import transformers; print(f'Transformers version: {transformers.__version__}')"
     
-    log "✓ Python dependencies installed"
+    # Show UV dependency tree
+    log "Dependency resolution completed. Use 'uv pip tree' to see the full dependency tree"
+    
+    log "✓ Python dependencies installed with UV"
 }
 
 download_model() {
@@ -280,8 +361,11 @@ download_model() {
     log_info "This will download approximately 450GB of data"
     log_info "Download time depends on your internet connection (may take several hours)"
     
+    # Ensure UV is in PATH
+    source "$HOME/.cargo/env" 2>/dev/null || true
+    
     # Activate environment
-    source "$INSTALL_DIR/bin/activate"
+    source "$INSTALL_DIR/.venv/bin/activate"
     
     # Create model directory
     mkdir -p "$INSTALL_DIR/models"
@@ -606,17 +690,21 @@ create_activation_script() {
     
     cat > "$INSTALL_DIR/activate_qwen480b.sh" << EOF
 #!/bin/bash
-# Qwen3-Coder-480B Environment Activation Script
+# Qwen3-Coder-480B Environment Activation Script (UV-powered)
 
 # Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-echo -e "\${GREEN}🚀 Activating Qwen3-Coder-480B Environment\${NC}"
+echo -e "\${GREEN}🚀 Activating Qwen3-Coder-480B Environment (UV)\${NC}"
 
-# Activate Python environment
-source "$INSTALL_DIR/bin/activate"
+# Add UV to PATH
+source "\$HOME/.cargo/env" 2>/dev/null || true
+
+# Activate Python environment (UV creates .venv directory)
+source "$INSTALL_DIR/.venv/bin/activate"
 
 # Set environment variables
 export INSTALL_DIR="$INSTALL_DIR"
@@ -636,6 +724,7 @@ echo -e "\${BLUE}Environment Variables:\${NC}"
 echo "  INSTALL_DIR: \$INSTALL_DIR"
 echo "  CUDA_VISIBLE_DEVICES: \$CUDA_VISIBLE_DEVICES"
 echo "  Python: \$(which python)"
+echo "  UV: \$(uv --version 2>/dev/null || echo 'not in PATH')"
 
 echo -e "\${GREEN}✓ Environment activated!\${NC}"
 echo ""
@@ -644,6 +733,10 @@ echo "  Test installation: python test_inference.py"
 echo "  Run benchmark: python benchmark.py"
 echo "  Check GPU: nvidia-smi"
 echo "  Monitor GPU: watch -n 1 nvidia-smi"
+echo -e "\${CYAN}UV Commands:\${NC}"
+echo "  View dependencies: uv pip tree"
+echo "  Update package: uv pip install --upgrade <package>"
+echo "  Check outdated: uv pip list --outdated"
 
 # Change to install directory
 cd "$INSTALL_DIR"
@@ -660,8 +753,11 @@ EOF
 run_installation_test() {
     log "Running installation verification test..."
     
+    # Ensure UV is in PATH
+    source "$HOME/.cargo/env" 2>/dev/null || true
+    
     # Activate environment
-    source "$INSTALL_DIR/bin/activate"
+    source "$INSTALL_DIR/.venv/bin/activate"
     export INSTALL_DIR="$INSTALL_DIR"
     
     # Run basic test
@@ -681,10 +777,11 @@ cleanup() {
     sudo apt autoremove -y
     sudo apt autoclean
     
-    # Clean pip cache
-    if [ -d "$INSTALL_DIR" ]; then
-        source "$INSTALL_DIR/bin/activate"
-        pip cache purge
+    # Clean UV cache
+    if command -v uv &> /dev/null; then
+        source "$HOME/.cargo/env" 2>/dev/null || true
+        log "Cleaning UV cache..."
+        uv cache clean 2>/dev/null || log_warning "Could not clean UV cache"
     fi
     
     log "✓ Cleanup completed"
@@ -701,6 +798,12 @@ show_completion_message() {
     echo "  1. Activate environment: source ~/activate_qwen480b.sh"
     echo "  2. Test installation: python test_inference.py"
     echo "  3. Run benchmark: python benchmark.py"
+    echo ""
+    echo "⚡ UV Package Manager:"
+    echo "  • View dependencies: uv pip tree"
+    echo "  • Update packages: uv pip install --upgrade <package>"
+    echo "  • List outdated: uv pip list --outdated"
+    echo "  • Install new package: uv pip install <package>"
     echo ""
     echo "📚 Documentation: https://github.com/twobitapps/480b-setup"
     echo -e "${NC}"

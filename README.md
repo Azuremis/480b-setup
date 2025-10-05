@@ -2,14 +2,23 @@
 
 Complete automated installation guide for Qwen3-Coder-480B-A35B-Instruct model on Ubuntu systems.
 
+> **⚡ Now Powered by UV**: This installation uses [UV](https://github.com/astral-sh/uv), the blazing-fast Python package manager, ensuring faster installs and automatic dependency conflict resolution!
+
 > **📌 Important**: For the verified working installation process, see [INSTALLATION_GUIDE_480B.md](./INSTALLATION_GUIDE_480B.md). This guide provides the exact steps that successfully installed the 480B model with GGUF format.
 
 ## 🚀 Quick Start
 
 ```bash
-# One-line installation
-curl -fsSL https://raw.githubusercontent.com/twobitapps/480b-setup/main/install.sh | bash
+# One-line installation (with UV package manager)
+curl -fsSL https://raw.githubusercontent.com/azuremis/480b-setup/main/install.sh | bash
 ```
+
+### What's New in v2.0
+
+- ⚡ **UV Integration**: 10-100x faster package installation
+- 🔒 **Automatic Dependency Resolution**: No more version conflicts
+- 📦 **Reproducible Builds**: Lock file support for consistent environments
+- 🚀 **Better Caching**: Reduced re-download of packages
 
 ## 📋 System Requirements
 
@@ -79,14 +88,44 @@ docker-compose up -d
 After installation, verify everything works:
 
 ```bash
-# Run system verification
-./scripts/test_installation.sh
+# Activate the environment
+source ~/activate_qwen480b.sh
 
 # Run basic inference test
 python examples/basic_inference.py
 
 # Run performance benchmark
-./scripts/benchmark.sh
+python benchmark.py
+```
+
+## 📦 UV Package Manager Commands
+
+The installation now uses UV for lightning-fast package management:
+
+```bash
+# View dependency tree
+uv pip tree
+
+# Install new package
+uv pip install <package-name>
+
+# Update a package
+uv pip install --upgrade <package-name>
+
+# List all installed packages
+uv pip list
+
+# Check for outdated packages
+uv pip list --outdated
+
+# Show package information
+uv pip show <package-name>
+
+# Uninstall package
+uv pip uninstall <package-name>
+
+# Clean UV cache (save disk space)
+uv cache clean
 ```
 
 ## 🐛 Troubleshooting
