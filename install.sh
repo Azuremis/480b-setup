@@ -120,34 +120,41 @@ install_uv() {
     log "Installing UV package manager..."
     
     # Check if UV is already installed
-    if command -v uv &> /dev/null; then
+    if command -v uv &> /dev/null || [ -x "$HOME/.local/bin/uv" ]; then
         local uv_version
-        uv_version=$(uv --version | awk '{print $2}')
+        if command -v uv &> /dev/null; then
+            uv_version=$(uv --version | awk '{print $2}')
+        else
+            uv_version=$("$HOME/.local/bin/uv" --version | awk '{print $2}')
+        fi
         log_info "UV already installed: $uv_version"
-        
-        # Update UV to latest version
-        log "Updating UV to latest version..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        source "$HOME/.cargo/env" 2>/dev/null || true
-        log "✓ UV updated to latest version"
+        log "✓ UV installation verified"
     else
-        # Install UV
+        # Install UV (ignore Fish shell config errors)
         log "Downloading and installing UV..."
-        curl -LsSf https://astral.sh/uv/install.sh | sh
+        curl -LsSf https://astral.sh/uv/install.sh | sh 2>&1 | grep -v "fish" || true
         
         # Add UV to PATH for current session
+        export PATH="$HOME/.local/bin:$PATH"
         source "$HOME/.cargo/env" 2>/dev/null || true
         
         # Verify installation
-        if command -v uv &> /dev/null; then
+        if command -v uv &> /dev/null || [ -x "$HOME/.local/bin/uv" ]; then
             local uv_version
-            uv_version=$(uv --version | awk '{print $2}')
+            if command -v uv &> /dev/null; then
+                uv_version=$(uv --version | awk '{print $2}')
+            else
+                uv_version=$("$HOME/.local/bin/uv" --version | awk '{print $2}')
+            fi
             log "✓ UV $uv_version installed successfully"
         else
             log_error "UV installation failed"
             exit 1
         fi
     fi
+    
+    # Ensure UV is in PATH
+    export PATH="$HOME/.local/bin:$PATH"
 }
 
 install_system_dependencies() {
