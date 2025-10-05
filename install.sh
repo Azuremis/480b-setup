@@ -377,7 +377,8 @@ download_model() {
     mkdir -p "$INSTALL_DIR/models"
     cd "$INSTALL_DIR/models"
     
-    # Set up Hugging Face cache
+    # Set up Hugging Face cache and export INSTALL_DIR for Python script
+    export INSTALL_DIR="$INSTALL_DIR"
     export HF_HOME="$INSTALL_DIR/huggingface_cache"
     mkdir -p "$HF_HOME"
     
@@ -762,9 +763,11 @@ run_installation_test() {
     # Ensure UV is in PATH
     source "$HOME/.cargo/env" 2>/dev/null || true
     
+    # Export INSTALL_DIR before activating (Python scripts need it)
+    export INSTALL_DIR="$INSTALL_DIR"
+    
     # Activate environment
     source "$INSTALL_DIR/.venv/bin/activate"
-    export INSTALL_DIR="$INSTALL_DIR"
     
     # Run basic test
     if python "$INSTALL_DIR/test_inference.py"; then
