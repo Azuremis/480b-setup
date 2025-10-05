@@ -311,12 +311,11 @@ install_python_dependencies() {
         torchaudio==2.3.0 \
         --index-url https://download.pytorch.org/whl/cu121
     
-    # Install core dependencies with UV
+    # Install core dependencies with UV (let UV resolve tokenizers version for transformers)
     log "Installing core ML dependencies..."
     uv pip install \
         transformers==4.54.1 \
         accelerate==0.33.0 \
-        tokenizers==0.19.1 \
         sentencepiece==0.2.0 \
         protobuf==3.20.3 \
         "huggingface-hub>=0.34.0,<1.0" \
@@ -324,7 +323,7 @@ install_python_dependencies() {
         bitsandbytes==0.43.3 \
         datasets==2.21.0 \
         evaluate==0.4.3 \
-        numpy==1.24.4 \
+        "numpy<2.0" \
         scikit-learn==1.5.1 \
         scipy==1.13.1 \
         matplotlib==3.9.2 \
