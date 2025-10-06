@@ -69,7 +69,7 @@ check_root() {
         
         # Get username from environment or prompt
         local NEWUSER
-        if [[ -n $NEWUSER_ENV ]]; then
+        if [[ -n ${NEWUSER_ENV:-} ]]; then
             NEWUSER=$NEWUSER_ENV
         else
             read -e -p "Enter username for the new user: " NEWUSER
@@ -112,14 +112,14 @@ check_root() {
             else
                 # Prompt for public key
                 local PUB_KEY
-                if [[ -n $PUB_KEY_ENV ]]; then
+                if [[ -n ${PUB_KEY_ENV:-} ]]; then
                     PUB_KEY=$PUB_KEY_ENV
                 else
                     echo ""
                     read -e -p "Paste your SSH public key (or press Enter to skip): " PUB_KEY
                 fi
                 
-                if [[ -n $PUB_KEY ]]; then
+                if [[ -n ${PUB_KEY:-} ]]; then
                     mkdir -p $USER_HOME/.ssh
                     chmod 700 $USER_HOME/.ssh
                     echo "$PUB_KEY" > $USER_HOME/.ssh/authorized_keys
