@@ -59,9 +59,106 @@ print_header() {
 
 check_root() {
     if [[ $EUID -eq 0 ]]; then
-        log_error "This script should not be run as root for security reasons."
-        log_info "Please run as a regular user with sudo privileges."
-        exit 1
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}Running as root detected!${NC}"
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        echo -e "${BLUE}This script should not be run as root for security reasons.${NC}"
+        echo -e "${BLUE}Let's create a non-root user with sudo privileges.${NC}"
+        echo ""
+        
+        # Get username from environment or prompt
+        local NEWUSER
+        if [[ -n $NEWUSER_ENV ]]; then
+            NEWUSER=$NEWUSER_ENV
+        else
+            read -e -p "Enter username for the new user: " NEWUSER
+        fi
+        
+        # Validate username
+        if [[ -z $NEWUSER ]]; then
+            log_error "Empty username not permitted"
+            exit 1
+        fi
+        
+        # Check if user already exists
+        if id "$NEWUSER" &>/dev/null; then
+            echo -e "${GREEN}✓ User $NEWUSER already exists${NC}"
+        else
+            echo -e "${CYAN}Creating user $NEWUSER...${NC}"
+            adduser $NEWUSER --gecos '' --disabled-password
+            echo "$NEWUSER:$(openssl rand -base64 12)" | chpasswd
+            usermod -aG sudo $NEWUSER
+            echo "$NEWUSER  ALL=(ALL:ALL) NOPASSWD:ALL" >> /etc/sudoers
+            echo -e "${GREEN}✓ User $NEWUSER created with sudo privileges${NC}"
+        fi
+        
+        local USER_HOME=/home/$NEWUSER
+        
+        # Set up SSH keys if available
+        if [[ ! -s $USER_HOME/.ssh/authorized_keys ]]; then
+            echo ""
+            echo -e "${CYAN}Setting up SSH access...${NC}"
+            
+            # Try to copy root's SSH keys first
+            if [[ -f /root/.ssh/authorized_keys ]]; then
+                echo -e "${BLUE}Copying SSH keys from root user...${NC}"
+                mkdir -p $USER_HOME/.ssh
+                chmod 700 $USER_HOME/.ssh
+                cp /root/.ssh/authorized_keys $USER_HOME/.ssh/authorized_keys
+                chmod 600 $USER_HOME/.ssh/authorized_keys
+                chown -R $NEWUSER:$NEWUSER $USER_HOME/.ssh
+                echo -e "${GREEN}✓ SSH keys copied from root${NC}"
+            else
+                # Prompt for public key
+                local PUB_KEY
+                if [[ -n $PUB_KEY_ENV ]]; then
+                    PUB_KEY=$PUB_KEY_ENV
+                else
+                    echo ""
+                    read -e -p "Paste your SSH public key (or press Enter to skip): " PUB_KEY
+                fi
+                
+                if [[ -n $PUB_KEY ]]; then
+                    mkdir -p $USER_HOME/.ssh
+                    chmod 700 $USER_HOME/.ssh
+                    echo "$PUB_KEY" > $USER_HOME/.ssh/authorized_keys
+                    chmod 600 $USER_HOME/.ssh/authorized_keys
+                    chown -R $NEWUSER:$NEWUSER $USER_HOME/.ssh
+                    echo -e "${GREEN}✓ SSH key installed${NC}"
+                else
+                    echo -e "${YELLOW}⚠ No SSH key provided. You'll need to use password authentication.${NC}"
+                fi
+            fi
+        else
+            echo -e "${GREEN}✓ SSH keys already configured for $NEWUSER${NC}"
+        fi
+        
+        # Copy the script to the new user's home directory
+        local SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+        local SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
+        
+        if [[ "$SCRIPT_DIR" != "$USER_HOME"* ]]; then
+            echo ""
+            echo -e "${CYAN}Copying installation files to $USER_HOME...${NC}"
+            cp -r "$SCRIPT_DIR" "$USER_HOME/"
+            chown -R $NEWUSER:$NEWUSER "$USER_HOME/$(basename "$SCRIPT_DIR")"
+            echo -e "${GREEN}✓ Installation files copied${NC}"
+        fi
+        
+        echo ""
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${GREEN}✓ User setup completed!${NC}"
+        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo ""
+        echo -e "${CYAN}Next steps:${NC}"
+        echo -e "  1. ${BLUE}Login as $NEWUSER${NC} (using SSH or 'su - $NEWUSER')"
+        echo -e "  2. ${BLUE}Navigate to:${NC} cd ~/$(basename "$SCRIPT_DIR")"
+        echo -e "  3. ${BLUE}Run the script:${NC} ./$(basename "$SCRIPT_PATH")"
+        echo ""
+        echo -e "${YELLOW}The script will now exit.${NC}"
+        echo ""
+        exit 0
     fi
 }
 
